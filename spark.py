@@ -16,6 +16,7 @@ os.environ["PATH"] += os.pathsep + "C:\\hadoop\\bin"
 # Creamos ruta donde estan los datos, en este caso la carpeta raw que se encuentra dentro de data, 
 # que es donde se descargan los datos de kagglehub
 path = "./data/raw"
+path_silver = "./data/silver"
 
 #kagglehub.dataset_download("olistbr/brazilian-ecommerce")
 
@@ -125,6 +126,39 @@ df_products_clean = df_products_clean.na.fill({col: 0 for col in cols_to_zero})
 
 df_products_clean.show(5, truncate=False)
 
+##########################Carga de tablas a Silver##########################
+
+# 1. TUS TABLAS VALIDADAS (Las que ya limpiamos juntos)
+df_satisfaccion.write.mode("overwrite").parquet("data/silver/olist_order_reviews_satisfaccion.parquet")
+df_comportamiento.write.mode("overwrite").parquet("data/silver/olist_order_reviews_comportamiento.parquet")
+df_products_clean.write.mode("overwrite").parquet("data/silver/olist_products_dataset.parquet")
+
+# 1. Definimos las reglas de desduplicación para TODAS las tablas
+reglas_desduplicacion = {
+    "olist_orders_dataset.csv": ["order_id"],
+    "olist_customers_dataset.csv": ["customer_id"],
+    "olist_order_items_dataset.csv": ["order_id", "order_item_id"],
+    "olist_order_payments_dataset.csv": ["order_id", "payment_sequential"],
+    "olist_sellers_dataset.csv": ["seller_id"],
+    "product_category_name_translation.csv": ["product_category_name"],
+    "olist_geolocation_dataset.csv": ["geolocation_zip_code_prefix", "geolocation_lat", "geolocation_lng"]
+}
+
+# 2. Iteramos para limpiar y guardar
+for nombre_archivo, llaves in reglas_desduplicacion.items():
+    # Cargamos el archivo original desde RAW
+    df = spark.read.csv(os.path.join("data", "raw", nombre_archivo), header=True, inferSchema=True)
+    
+    # Aplicamos la desduplicación específica para esta tabla
+    df_limpio = df.dropDuplicates(llaves)
+    
+    # Guardamos en SILVER
+    nombre_parquet = nombre_archivo.replace(".csv", ".parquet")
+    df_limpio.write.mode("overwrite").parquet(os.path.join("data", "silver", nombre_parquet))
+    
+    print(f"Tabla {nombre_archivo} desduplicada y guardada en Silver.")
+
+    #customers , geolocation , order_items , order_payments , sellers , orders , product_category_name_translation
 
 # Apagamos la sesión al terminar
 spark.stop()

@@ -75,8 +75,8 @@ df_base = df_reviews.dropDuplicates(["review_id"]) \
 
 # 2. Ahora que sabemos que todos son números, hacemos el cast
 df_base = df_base.withColumn("review_score", F.col("review_score").cast(IntegerType())) \
-                 .withColumn("creation_date", F.to_timestamp(F.col("review_creation_date"), "yyyy-MM-dd HH:mm:ss")) \
-                 .withColumn("answer_date", F.to_timestamp(F.col("review_answer_timestamp"), "yyyy-MM-dd HH:mm:ss"))
+                 .withColumn("creation_date", F.to_timestamp(F.col("review_creation_date"))) \
+                 .withColumn("answer_date", F.to_timestamp(F.col("review_answer_timestamp")))
 
 df_base = df_base.na.fill({
     "review_comment_title": "Sin título",

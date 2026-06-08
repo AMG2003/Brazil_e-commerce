@@ -67,21 +67,16 @@ df_reviews = spark.read.csv(os.path.join(path, "olist_order_reviews_dataset.csv"
 # 2. LIMPIEZA BASE
 # Filtramos filas donde review_score no sea un número válido
 # Usamos un regex para asegurar que el score solo contenga dígitos
-df_base = df_reviews.dropDuplicates(["review_id"]) \
-                    .dropDuplicates(["order_id"]) \
+df_base = df_reviews.dropDuplicates(["review_id","order_id"]) \
                     .filter(F.col("review_id").isNotNull()) \
                     .filter(F.col("order_id").isNotNull()) \
                     .filter(F.col("review_score").rlike("^[0-9]+$")) # <--- ESTA LÍNEA ES LA CLAVE
 
 # 2. Ahora que sabemos que todos son números, hacemos el cast
 df_base = df_base.withColumn("review_score", F.col("review_score").cast(IntegerType())) \
-                 .withColumn("creation_date", F.to_timestamp(F.col("review_creation_date"))) \
-                 .withColumn("answer_date", F.to_timestamp(F.col("review_answer_timestamp")))
-
-df_base = df_base.na.fill({
-    "review_comment_title": "Sin título",
-    "review_comment_message": "Sin comentarios"
-})
+                 .withColumn("creation_date", F.try_to_timestamp(F.col("review_creation_date"))) \
+                 .withColumn("answer_date", F.try_to_timestamp(F.col("review_answer_timestamp"))) \
+                 .na.fill({"review_comment_title": "Sin título", "review_comment_message": "Sin comentarios"})
 
 # IMPORTANTE: Si el error sigue, imprime el esquema antes de limpiar para ver si los nombres coinciden
 df_base.printSchema()
@@ -128,37 +123,16 @@ df_products_clean.show(5, truncate=False)
 
 ##########################Carga de tablas a Silver##########################
 
-# 1. TUS TABLAS VALIDADAS (Las que ya limpiamos juntos)
-df_satisfaccion.write.mode("overwrite").parquet("data/silver/olist_order_reviews_satisfaccion.parquet")
-df_comportamiento.write.mode("overwrite").parquet("data/silver/olist_order_reviews_comportamiento.parquet")
-df_products_clean.write.mode("overwrite").parquet("data/silver/olist_products_dataset.parquet")
-
-# 1. Definimos las reglas de desduplicación para TODAS las tablas
-reglas_desduplicacion = {
-    "olist_orders_dataset.csv": ["order_id"],
-    "olist_customers_dataset.csv": ["customer_id"],
-    "olist_order_items_dataset.csv": ["order_id", "order_item_id"],
-    "olist_order_payments_dataset.csv": ["order_id", "payment_sequential"],
-    "olist_sellers_dataset.csv": ["seller_id"],
-    "product_category_name_translation.csv": ["product_category_name"],
-    "olist_geolocation_dataset.csv": ["geolocation_zip_code_prefix", "geolocation_lat", "geolocation_lng"]
-}
-
-# 2. Iteramos para limpiar y guardar
-for nombre_archivo, llaves in reglas_desduplicacion.items():
-    # Cargamos el archivo original desde RAW
-    df = spark.read.csv(os.path.join("data", "raw", nombre_archivo), header=True, inferSchema=True)
-    
-    # Aplicamos la desduplicación específica para esta tabla
-    df_limpio = df.dropDuplicates(llaves)
-    
-    # Guardamos en SILVER
-    nombre_parquet = nombre_archivo.replace(".csv", ".parquet")
-    df_limpio.write.mode("overwrite").parquet(os.path.join("data", "silver", nombre_parquet))
-    
-    print(f"Tabla {nombre_archivo} desduplicada y guardada en Silver.")
+try:
+    # 1. TUS TABLAS VALIDADAS (Las que ya limpiamos juntos)
+    df_satisfaccion.write.mode("overwrite").parquet("data/silver/olist_order_reviews_satisfaccion.parquet")
+    df_comportamiento.write.mode("overwrite").parquet("data/silver/olist_order_reviews_comportamiento.parquet")
+    df_products_clean.write.mode("overwrite").parquet("data/silver/olist_products_dataset.parquet")
 
     #customers , geolocation , order_items , order_payments , sellers , orders , product_category_name_translation
+    
+except Exception as e:
+    print("Error durante la limpieza y guardado de tablas adicionales:", str(e))    
 
 # Apagamos la sesión al terminar
 spark.stop()

@@ -11,7 +11,6 @@ os.environ["PATH"] += os.pathsep + "C:\\hadoop\\bin"
 
 # Creamos ruta donde estan los datos, en este caso la carpeta raw que se encuentra dentro de data, 
 # que es donde se descargan los datos de kagglehub
-path = "./data/raw"
 path_silver = "./data/silver"
 
 #kagglehub.dataset_download("olistbr/brazilian-ecommerce")
@@ -24,9 +23,6 @@ spark = SparkSession.builder \
     .config("spark.sql.warehouse.dir", "file:///C:/temp") \
     .config("spark.sql.execution.arrow.pyspark.enabled", "true") \
     .getOrCreate()
-
-print("--- ¡Spark se inició correctamente! ---")
-print("Ruta del dataset leido:", path)
 
 # 1. Cargar las tablas Silver
 df_orders = spark.read.parquet("./data/silver/olist_orders_dataset.parquet")

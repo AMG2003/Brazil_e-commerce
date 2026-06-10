@@ -2,7 +2,6 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col,avg,row_number
 from pyspark.sql import functions as F
 from pyspark.sql.functions import explode, create_map, lit
-from pyspark.sql.types import IntegerType 
 #import kagglehub
 import os 
 

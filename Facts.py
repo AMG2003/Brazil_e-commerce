@@ -50,6 +50,7 @@ fact_orders = df_orders \
         "total_price",
         "total_freight",
         "total_items",
+        "order_purchase_timestamp",
         "review_score"
     )
 
